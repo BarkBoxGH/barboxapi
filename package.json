@@ -9,11 +9,10 @@
   "type": "module",
   "scripts": {
     "start": "node .",
-    "dev": "nodemon -r dotenv/config ."
+    "dev": "nodemon --env-file=.env ."
   },
   "devDependencies": {
-    "nodemon": "^3.1.7",
-    "dotenv": "^16.4.5"
+    "nodemon": "^3.1.7"
   },
   "keywords": [],
   "author": "",
