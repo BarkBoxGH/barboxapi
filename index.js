@@ -1,5 +1,6 @@
 import express from "express";
 import mongoose from "mongoose";
+import { personRouter } from "./routes/person.js";
 
 // Connect to MongoDB
 await mongoose.connect(process.env.MONGO_URI);
@@ -10,6 +11,9 @@ const app = express();
 // use middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// use routes
+app.use('/person', personRouter);
 
 // Start server
 app.listen(process.env.PORT, () => {

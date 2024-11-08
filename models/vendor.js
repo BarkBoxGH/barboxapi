@@ -31,4 +31,4 @@ const vendorSchema = new Schema({
 vendorSchema.plugin(toJSON);
 
 // export vendor model
-export const VendorModel = PersonModel.discriminator( 'Vendor', vendorSchema );
+export const VendorModel = PersonModel.discriminator( 'vendor', vendorSchema );

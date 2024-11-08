@@ -30,6 +30,7 @@ const personSchema = new Schema({
     }
 }, 
 {
+    discriminatorKey: '__t',
     timestamps: true
 })
 
