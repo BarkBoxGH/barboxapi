@@ -27,12 +27,22 @@ const personSchema = new Schema({
         type: String,
         default: 'user',
         enum: ['admin', 'user', 'vendor'],
+        
     }
 }, 
 {
     discriminatorKey: '__t',
     timestamps: true
-})
+});
+
+// 
+
+personSchema.pre('save', function(next) {
+    if (this.__t) {
+        this.role = this.__t.toLowerCase();
+    }
+    next();
+});
 
 // Add toJSON plugin to the schema
 personSchema.plugin(toJSON);
