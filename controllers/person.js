@@ -4,6 +4,14 @@ import { UserModel } from '../models/user.js';
 import { VendorModel } from '../models/vendor.js';
 import { createPerson } from '../service/person.js';
 import { getPersonById } from '../service/person.js';
+import { comparePassword } from '../middlewares/authenticator.js';
+import { hashPassword } from '../middlewares/authenticator.js';
+import { generateToken } from '../middlewares/authenticator.js';
+import { authenticateToken } from '../middlewares/authenticator.js';
+import { verifyToken } from '../middlewares/authenticator.js';
+
+import bcrypt from 'bcryptjs';
+
 // import Admin from '../models/Admin.js';
 
 // Function to create a person based on role
@@ -39,15 +47,26 @@ import { getPersonById } from '../service/person.js';
 
 export async function registerPerson(req, res, next) {
   try {
-      const { role, ...data } = req.body;
-      const result = await createPerson(role, data);
-      res.status(201).json(result);
+      const { role, email, password, ...data } = req.body;
+      
+      // Hash the password using authenticator middleware
+      const hashedPassword = await hashPassword(password);
+      
+      // Create person with hashed password
+      const result = await createPerson(role, { ...data, email, password: hashedPassword });
+      
+      // Generate JWT token using authenticator middleware
+      const token = generateToken({ id: result.data._id, role: role });
+      
+      res.status(201).json({
+        ...result,
+        token
+      });
   } catch (error) {
       next(error);
   }
-};
 
-// write a function to get all persons
+};// write a function to get all persons
 export async function getAllPersons(req, res, next) {
   try {
     const persons = await PersonModel.find();
@@ -62,15 +81,29 @@ export async function loginPerson(req, res, next) {
   try {
     const { email, password } = req.body;
     const person = await PersonModel.findOne({ email });
-    if (!person || !person.comparePassword(password)) {
+    
+    if (!person) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+
+    const isPasswordValid = await comparePassword(password, person.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const token = generateToken({ id: person._id, role: person.role });
+
+    return res.status(200).json({
+      success: true,
+      data: person,
+      token,
+      message: 'Login successful'
+    });
   } catch (error) {
     next(error);
-  }
-}
+  };
 
-// write function to login user
+}// write function to login user
 export async function loginUser(req, res, next) {
   try {
     const { email, password } = req.body;
