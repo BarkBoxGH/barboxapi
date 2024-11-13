@@ -139,3 +139,53 @@ export async function loginVendor(req, res, next) {
   }
 };
 
+export const deletePerson = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const deletedPerson = await PersonModel.findByIdAndDelete(id);
+    if (!deletedPerson) {
+      return res.status(404).json({ message: 'Person not found' });
+    }
+    return res.status(200).json({
+      success: true,
+      data: deletedPerson,
+      message: 'Person deleted successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updatePerson = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updatedPerson = await PersonModel.findByIdAndUpdate(id, req.body, { new: true });
+    if (!updatedPerson) {
+      return res.status(404).json({ message: 'Person not found' });
+    }
+    return res.status(200).json({
+      success: true,
+      data: updatedPerson,
+      message: 'Person updated successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPersonByIdentifier = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const person = await PersonModel.findById(id);
+    if (!person) {
+      return res.status(404).json({ message: 'Person not found' });
+    }
+    return res.status(200).json({
+      success: true,
+      data: person,
+      message: 'Person retrieved successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
