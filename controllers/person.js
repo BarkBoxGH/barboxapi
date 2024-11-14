@@ -9,6 +9,9 @@ import { hashPassword } from '../middlewares/authenticator.js';
 import { generateToken } from '../middlewares/authenticator.js';
 import { authenticateToken } from '../middlewares/authenticator.js';
 import { verifyToken } from '../middlewares/authenticator.js';
+import { sendMail } from '../utils/mail.js';
+import { createPersonValidator } from '../validators/person.js';
+
 
 import bcrypt from 'bcryptjs';
 
@@ -47,19 +50,60 @@ import bcrypt from 'bcryptjs';
 
 export async function registerPerson(req, res, next) {
   try {
+    // Validate input using Joi validator
+    const { error } = createPersonValidator.validate(req.body);
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message
+      });
+    }
+
       const { role, email, password, ...data } = req.body;
+
+      // Check if user already exists
+    const existingPerson = await PersonModel.findOne({ email });
+    if (existingPerson) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email already registered'
+      });
+    }
       
       // Hash the password using authenticator middleware
       const hashedPassword = await hashPassword(password);
       
       // Create person with hashed password
-      const result = await createPerson(role, { ...data, email, password: hashedPassword });
+      const result = await createPerson(role, { 
+        ...data, 
+        email, 
+        password: hashedPassword 
+      });
       
       // Generate JWT token using authenticator middleware
-      const token = generateToken({ id: result.data._id, role: role });
+      const token = generateToken({ 
+        id: result.data._id, 
+        role: role 
+      });
+
+       // Send welcome email (asynchronously, doesn't block registration)
+    try {
+      await sendMail({
+        to: email,
+        subject: 'Welcome to BarkBox!',
+        html: welcomeEmailTemplate(result.data)
+      });
+    } catch (emailError) {
+      console.error('Welcome email sending failed:', emailError);
+      // Non-blocking email error
+    }
+
+    // Remove password from response
+    const { password: removedPassword, ...personResponse } = result.data;
       
       res.status(201).json({
-        ...result,
+        success: true,
+        data: personResponse,
         token
       });
   } catch (error) {
