@@ -1,250 +1,341 @@
-import { BookingModel } from '../models/booking.js';
-import { PetProfileModel } from '../models/pet-profile.js';
+// controllers/booking.js
+import { BookingModel } from "../models/booking.js";
+import { sendMail } from "../utils/mail.js";
+import { bookingCreatedTemplate,
+  bookingStatusChangedTemplate
+ } from "../utils/emailTemplates.js";
+import { UserModel } from "../models/user.js";
+import { 
+    validateCreateBooking, 
+    validateUpdateBooking, 
+    extractValidationErrors 
+} from "../validators/booking.js";
 
-export const createBooking = async (req, res) => {
-  try {
-    const { 
-      service, 
-      petId, 
-      appointmentDate, 
-      appointmentTime, 
-      notes, 
-      price 
-    } = req.body;
+// Create a new booking
+export const createBooking = async (req, res, next) => {
+    try {
+        // Validate incoming booking data
+        const validationResult = validateCreateBooking(req.body);
+        
+        // Check for validation errors
+        if (validationResult.error) {
+            return res.status(400).json({
+                success: false,
+                errors: extractValidationErrors(validationResult)
+            });
+        }
 
-    // Validate pet exists and belongs to the user
-    const pet = await PetProfileModel.findOne({
-      _id: petId,
-      petOwner: req.user.id // Assuming authenticateToken middleware adds user info
-    });
+        const { service, petOwner, petName, appointmentDate, appointmentTime } = req.body;
 
-    if (!pet) {
-      return res.status(404).json({ 
-        message: 'Pet not found or you do not have permission to book for this pet' 
-      });
-    }
+          // Verify that the petOwner exists
+          const ownerExists = await UserModel.findById(petOwner);
+          if (!ownerExists) {
+              return res.status(404).json({
+                  success: false,
+                  message: "Pet owner not found"
+              });
+          }
 
-    // Check for conflicting bookings
-    const existingBooking = await BookingModel.findOne({
-      service,
-      appointmentDate: new Date(appointmentDate),
-      appointmentTime,
-      status: { $ne: 'cancelled' }
-    });
-
-    if (existingBooking) {
-      return res.status(400).json({ 
-        message: 'This time slot is already booked' 
-      });
-    }
-
-    // Create new booking
-    const newBooking = new BookingModel({
-      service,
-      petOwner: req.user.id,
-      pet: petId,
-      appointmentDate,
-      appointmentTime,
-      notes,
-      price,
-      status: 'pending'
-    });
-
-    await newBooking.save();
-
-    res.status(201).json({
-      success: true,
-      data: newBooking,
-      message: 'Booking created successfully'
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      message: 'Error creating booking', 
-      error: error.message 
-    });
-  }
-};
-
-export const getBookings = async (req, res) => {
-  try {
-    const { 
-      service, 
-      status, 
-      startDate, 
-      endDate 
-    } = req.query;
-
-    let query = { petOwner: req.user.id };
-
-    // Add optional filters
-    if (service) query.service = service;
-    if (status) query.status = status;
-    if (startDate && endDate) {
-      query.appointmentDate = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
-    }
-
-    const bookings = await BookingModel.find(query)
-      .populate('pet')
-      .sort({ appointmentDate: 1 });
-
-    res.status(200).json({
-      success: true,
-      data: bookings,
-      message: 'Bookings retrieved successfully'
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      message: 'Error retrieving bookings', 
-      error: error.message 
-    });
-  }
-};
-
-export const updateBooking = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { 
-      appointmentDate, 
-      appointmentTime, 
-      notes, 
-      status 
-    } = req.body;
-
-    // Find existing booking
-    const existingBooking = await BookingModel.findOne({
-      _id: id,
-      petOwner: req.user.id
-    });
-
-    if (!existingBooking) {
-      return res.status(404).json({ 
-        message: 'Booking not found or you do not have permission to update' 
-      });
-    }
-
-    // Check for conflicting bookings if date/time is being changed
-    if (appointmentDate || appointmentTime) {
-      const conflictBooking = await BookingModel.findOne({
-        service: existingBooking.service,
-        appointmentDate: new Date(appointmentDate || existingBooking.appointmentDate),
-        appointmentTime: appointmentTime || existingBooking.appointmentTime,
-        status: { $ne: 'cancelled' },
-        _id: { $ne: id }
-      });
-
-      if (conflictBooking) {
-        return res.status(400).json({ 
-          message: 'This time slot is already booked' 
+        // Check for existing bookings at the same date and time
+        const bookingDate = new Date(appointmentDate);
+        const existingBooking = await BookingModel.findOne({
+            service,
+            appointmentDate: {
+                $gte: new Date(bookingDate.setHours(0, 0, 0, 0)),
+                $lt: new Date(bookingDate.setHours(23, 59, 59, 999))
+            },
+            appointmentTime
         });
+
+        if (existingBooking) {
+            return res.status(409).json({ 
+                success: false,
+                message: "This time slot is already booked. Please choose another time." 
+            });
+        }
+
+        // Create new booking
+        const newBooking = new BookingModel({
+          service,
+          petOwner,
+          petName,
+          appointmentDate,
+          appointmentTime,
+          notes: notes || '', // Optional notes
+          status: 'pending'
+      });
+
+        // save booking
+        await newBooking.save();
+
+         // Populate petOwner details for the response
+        await newBooking.populate('petOwner', 'firstName lastName email');
+      
+        try {
+          await sendMail({
+              to: newBooking.petOwner.email,
+              subject: 'Booking Confirmation - BarkBox Services',
+              html: bookingCreatedTemplate(newBooking)
+          });
+      } catch (emailError) {
+          console.error('Email sending failed:', emailError);
+          // Note: We don't stop the booking process if email fails
       }
+
+        res.status(201).json({
+            success: true,
+            data: newBooking,
+            message: "Booking created successfully"
+        });
+
+    } catch (error) {
+        next(error);
     }
-
-    // Update booking
-    const updatedBooking = await BookingModel.findByIdAndUpdate(
-      id, 
-      {
-        appointmentDate: appointmentDate || existingBooking.appointmentDate,
-        appointmentTime: appointmentTime || existingBooking.appointmentTime,
-        notes: notes || existingBooking.notes,
-        status: status || existingBooking.status
-      }, 
-      { new: true }
-    );
-
-    res.status(200).json({
-      success: true,
-      data: updatedBooking,
-      message: 'Booking updated successfully'
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      message: 'Error updating booking', 
-      error: error.message 
-    });
-  }
 };
 
-export const cancelBooking = async (req, res) => {
-  try {
-    const { id } = req.params;
+// Get all bookings with advanced filtering and pagination
+export const getAllBookings = async (req, res, next) => {
+    try {
+        const { 
+            service, 
+            status, 
+            petOwner,
+            startDate,
+            endDate,
+            page = 1, 
+            limit = 10, 
+            sort = '-createdAt' 
+        } = req.query;
 
-    const cancelledBooking = await BookingModel.findOneAndUpdate(
-      { 
-        _id: id, 
-        petOwner: req.user.id 
-      },
-      { 
-        status: 'cancelled' 
-      },
-      { new: true }
-    );
+        // Create dynamic query
+        let query = {};
 
-    if (!cancelledBooking) {
-      return res.status(404).json({ 
-        message: 'Booking not found or you do not have permission to cancel' 
-      });
+        // Add filters
+        if (service) query.service = service;
+        if (status) query.status = status;
+        if (petOwner) query.petOwner = petOwner;
+
+        // Date range filter
+        if (startDate || endDate) {
+            query.appointmentDate = {};
+            if (startDate) query.appointmentDate.$gte = new Date(startDate);
+            if (endDate) query.appointmentDate.$lte = new Date(endDate);
+        }
+
+        // Pagination and sorting
+        const skip = (page - 1) * limit;
+        const bookings = await BookingModel.find(query)
+            .sort(sort)
+            .skip(skip)
+            .limit(parseInt(limit))
+            .populate('petOwner', 'firstName lastName email');
+
+        const total = await BookingModel.countDocuments(query);
+
+        res.status(200).json({
+            success: true,
+            data: bookings,
+            pagination: {
+                total,
+                pages: Math.ceil(total / limit),
+                currentPage: parseInt(page),
+                limit: parseInt(limit)
+            }
+        });
+
+    } catch (error) {
+        next(error);
     }
-
-    res.status(200).json({
-      success: true,
-      data: cancelledBooking,
-      message: 'Booking cancelled successfully'
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      message: 'Error cancelling booking', 
-      error: error.message 
-    });
-  }
 };
 
-export const getAvailableTimeSlots = async (req, res) => {
-  try {
-    const { 
-      service, 
-      date 
-    } = req.query;
+// Get booking by ID
+export const getBookingById = async (req, res, next) => {
+    try {
+        const booking = await BookingModel.findById(req.params.id)
+            .populate('petOwner', 'firstName lastName email');
 
-    if (!service || !date) {
-      return res.status(400).json({ 
-        message: 'Service and date are required' 
-      });
+        if (!booking) {
+            return res.status(404).json({ 
+                success: false,
+                message: "Booking not found" 
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: booking
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Update booking
+export const updateBooking = async (req, res, next) => {
+    try {
+        // Validate incoming update data
+        const validationResult = validateUpdateBooking(req.body);
+        
+        // Check for validation errors
+        if (validationResult.error) {
+            return res.status(400).json({
+                success: false,
+                errors: extractValidationErrors(validationResult)
+            });
+        }
+
+        const { service, appointmentDate, appointmentTime } = req.body;
+
+        // If date or time is being changed, check for conflicts
+        if (appointmentDate || appointmentTime) {
+            const bookingToUpdate = await BookingModel.findById(req.params.id);
+            
+            if (!bookingToUpdate) {
+                return res.status(404).json({ 
+                    success: false,
+                    message: "Booking not found" 
+                });
+            }
+
+            const checkDate = new Date(appointmentDate || bookingToUpdate.appointmentDate);
+            const checkService = service || bookingToUpdate.service;
+            const checkTime = appointmentTime || bookingToUpdate.appointmentTime;
+
+            const existingBooking = await BookingModel.findOne({
+                _id: { $ne: req.params.id }, // Exclude current booking
+                service: checkService,
+                appointmentDate: {
+                    $gte: new Date(checkDate.setHours(0, 0, 0, 0)),
+                    $lt: new Date(checkDate.setHours(23, 59, 59, 999))
+                },
+                appointmentTime: checkTime
+            });
+
+            if (existingBooking) {
+                return res.status(409).json({ 
+                    success: false,
+                    message: "This time slot is already booked. Please choose another time." 
+                });
+            }
+        }
+
+        // Update booking
+        const updatedBooking = await BookingModel.findByIdAndUpdate(
+            req.params.id, 
+            req.body, 
+            { 
+                new: true,
+                runValidators: true 
+            }
+        );
+
+        if (!updatedBooking) {
+            return res.status(404).json({ 
+                success: false,
+                message: "Booking not found" 
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: updatedBooking,
+            message: "Booking updated successfully"
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Update booking status
+export const updateBookingStatus = async (req, res, next) => {
+    try {
+        const { status } = req.body;
+
+        // Validate status
+        const validationResult = validateUpdateBooking({ status });
+        
+        if (validationResult.error) {
+            return res.status(400).json({
+                success: false,
+                errors: extractValidationErrors(validationResult)
+            });
+        }
+
+        const updatedBooking = await BookingModel.findByIdAndUpdate(
+            req.params.id, 
+            { status }, 
+            { 
+                new: true,
+                runValidators: true 
+            }
+        ).populate('petOwner', 'firstName lastName email');
+
+        if (!updatedBooking) {
+            return res.status(404).json({ 
+                success: false,
+                message: "Booking not found" 
+            });
+        }
+
+      // Send status change email
+      try {
+        await sendMail({
+            to: updatedBooking.petOwner.email,
+            subject: `Booking Status Update - ${status.toUpperCase()}`,
+            html: bookingStatusChangedTemplate(updatedBooking)
+        });
+    } catch (emailError) {
+        console.error('Status change email sending failed:', emailError);
+        // Note: We don't stop the status update if email fails
     }
 
-    // Define all possible time slots
-    const allTimeSlots = [
-      '09:00', '10:00', '11:00', '12:00', 
-      '13:00', '14:00', '15:00', '16:00', 
-      '17:00'
-    ];
+        res.status(200).json({
+            success: true,
+            data: updatedBooking,
+            message: "Booking status updated successfully"
+        });
 
-    // Find booked time slots for the given date and service
-    const bookedSlots = await BookingModel.find({
-      service,
-      appointmentDate: new Date(date),
-      status: { $ne: 'cancelled' }
-    });
+    } catch (error) {
+        next(error);
+    }
+};
 
-    // Extract booked times
-    const bookedTimes = bookedSlots.map(booking => booking.appointmentTime);
+// Delete a booking
+export const deleteBooking = async (req, res, next) => {
+  try {
+      // First, find the booking to check its status before deletion
+      const booking = await BookingModel.findById(req.params.id);
 
-    // Find available slots
-    const availableSlots = allTimeSlots.filter(
-      slot => !bookedTimes.includes(slot)
-    );
+      // Check if booking exists
+      if (!booking) {
+          return res.status(404).json({ 
+              success: false,
+              message: "Booking not found" 
+          });
+      }
 
-    res.status(200).json({
-      success: true,
-      data: availableSlots,
-      message: 'Available time slots retrieved successfully'
-    });
+      // Optional: Prevent deletion of certain booking statuses
+      if (booking.status === 'confirmed') {
+          return res.status(400).json({
+              success: false,
+              message: "Cannot delete a confirmed booking"
+          });
+      }
+      
+      // Proceed with deletion
+      const deletedBooking = await BookingModel.findByIdAndDelete(req.params.id);
+
+      res.status(200).json({
+          success: true,
+          data: deletedBooking,
+          message: "Booking deleted successfully"
+      });
+
   } catch (error) {
-    res.status(500).json({ 
-      message: 'Error retrieving available time slots', 
-      error: error.message 
-    });
+      // Log the error for debugging
+      console.error('Booking deletion error:', error);
+      next(error);
   }
 };

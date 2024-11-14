@@ -12,9 +12,9 @@ const bookingSchema = new Schema({
     ref: 'User',
     required: true
   },
-  pet: {
-    type: Schema.Types.ObjectId,
-    ref: 'PetProfile',
+  petName: {
+    type: String,
+    // ref: 'PetProfile',
     required: true
   },
   appointmentDate: {
@@ -32,10 +32,6 @@ const bookingSchema = new Schema({
   },
   notes: {
     type: String
-  },
-  price: {
-    type: Number,
-    required: true
   },
   createdAt: {
     type: Date,
