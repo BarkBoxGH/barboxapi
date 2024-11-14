@@ -1,5 +1,6 @@
 import express from "express";
 import mongoose from "mongoose";
+import Cors from "cors";
 import { personRouter } from "./routes/person.js";
 
 // Connect to MongoDB
@@ -11,6 +12,7 @@ const app = express();
 // use middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(Cors());
 
 // use routes
 app.use('/person', personRouter);
