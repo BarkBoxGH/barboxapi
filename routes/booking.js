@@ -21,7 +21,7 @@ bookingRouter.post('/book',
 
 // Get all bookings (with filtering and pagination)
 // Restrict to admin and vendor roles
-bookingRouter.get('/fetch', 
+bookingRouter.get('/all', 
     authenticateToken, 
     authorizeRoles(['admin', 'vendor']), 
     getAllBookings
