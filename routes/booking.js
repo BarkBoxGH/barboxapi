@@ -14,14 +14,14 @@ import { authorizeRoles } from '../middlewares/authorization.js';
 export const bookingRouter = Router();
 
 // Create a new booking (accessible to authenticated users)
-bookingRouter.post('/', 
+bookingRouter.post('/book', 
     authenticateToken, 
     createBooking
 );
 
 // Get all bookings (with filtering and pagination)
 // Restrict to admin and vendor roles
-bookingRouter.get('/', 
+bookingRouter.get('/fetch', 
     authenticateToken, 
     authorizeRoles(['admin', 'vendor']), 
     getAllBookings
@@ -29,13 +29,13 @@ bookingRouter.get('/',
 
 // Get a specific booking by ID
 // Users can only access their own bookings, admins can access all
-bookingRouter.get('/:id', 
+bookingRouter.get('/mybooking/:id', 
     authenticateToken, 
     getBookingById
 );
 
 // Update a booking (full update)
-bookingRouter.put('/:id', 
+bookingRouter.put('/mybooking/:id', 
     authenticateToken, 
     updateBooking
 );
@@ -53,4 +53,3 @@ bookingRouter.delete('/:id',
     deleteBooking
 );
 
-export default bookingRouter;

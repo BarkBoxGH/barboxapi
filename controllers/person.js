@@ -10,6 +10,7 @@ import { generateToken } from '../middlewares/authenticator.js';
 import { authenticateToken } from '../middlewares/authenticator.js';
 import { verifyToken } from '../middlewares/authenticator.js';
 import { sendMail } from '../utils/mail.js';
+import { welcomeEmailTemplate } from '../utils/emailTemplates.js';
 import { createPersonValidator } from '../validators/person.js';
 
 

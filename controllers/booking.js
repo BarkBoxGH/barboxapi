@@ -25,7 +25,7 @@ export const createBooking = async (req, res, next) => {
             });
         }
 
-        const { service, petOwner, petName, appointmentDate, appointmentTime } = req.body;
+        const { service, petOwner, petName, appointmentDate, appointmentTime, notes = '' } = req.body;
 
           // Verify that the petOwner exists
           const ownerExists = await UserModel.findById(petOwner);
@@ -61,7 +61,7 @@ export const createBooking = async (req, res, next) => {
           petName,
           appointmentDate,
           appointmentTime,
-          notes: notes || '', // Optional notes
+          notes, // Optional notes
           status: 'pending'
       });
 
