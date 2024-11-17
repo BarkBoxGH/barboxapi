@@ -8,7 +8,7 @@ export const bookingCreatedTemplate = (booking) => `
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background-color: #4CAF50; color: white; text-align: center; padding: 10px; }
+        .header { background-color: #001f3f; /* Changed to navy blue */ color: white; text-align: center; padding: 10px; }
         .content { background-color: #f4f4f4; padding: 20px; }
         .footer { text-align: center; color: #777; margin-top: 20px; }
     </style>
@@ -47,7 +47,7 @@ export const bookingStatusChangedTemplate = (booking) => `
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background-color: #2196F3; color: white; text-align: center; padding: 10px; }
+        .header { background-color: #001f3f; /* Changed to navy blue */ color: white; text-align: center; padding: 10px; }
         .content { background-color: #f4f4f4; padding: 20px; }
         .footer { text-align: center; color: #777; margin-top: 20px; }
         .status-badge {
@@ -57,7 +57,7 @@ export const bookingStatusChangedTemplate = (booking) => `
             font-weight: bold;
         }
         .status-pending { background-color: #FFC107; color: white; }
-        .status-confirmed { background-color: #4CAF50; color: white; }
+        .status-confirmed { background-color: #001f3f; /* Changed to navy blue */ color: white; } /* Changed to navy blue */
         .status-cancelled { background-color: #F44336; color: white; }
     </style>
 </head>
@@ -114,7 +114,7 @@ export const welcomeEmailTemplate = (person) => `
             padding: 20px;
         }
         .header {
-            background-color: #4CAF50;
+            background-color: #001f3f; /* Changed to navy blue */
             color: white;
             text-align: center;
             padding: 20px;
@@ -129,7 +129,7 @@ export const welcomeEmailTemplate = (person) => `
         }
         .button {
             display: inline-block;
-            background-color: #4CAF50;
+            background-color: #001f3f; /* Changed to navy blue */
             color: white;
             padding: 10px 20px;
             text-decoration: none;
