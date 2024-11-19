@@ -25,10 +25,10 @@ export const createBooking = async (req, res, next) => {
             });
         }
 
-        const { service, petOwner, petName, appointmentDate, appointmentTime, notes = '' } = req.body;
+        const { service, petName, appointmentDate, appointmentTime, notes = '' } = req.body;
 
           // Verify that the petOwner exists
-          const ownerExists = await UserModel.findById(petOwner);
+          const ownerExists = await UserModel.findById(req.user.id);
           if (!ownerExists) {
               return res.status(404).json({
                   success: false,
@@ -57,7 +57,7 @@ export const createBooking = async (req, res, next) => {
         // Create new booking
         const newBooking = new BookingModel({
           service,
-          petOwner,
+          petOwner: req.user.id,
           petName,
           appointmentDate,
           appointmentTime,

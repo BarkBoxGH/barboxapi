@@ -13,12 +13,12 @@ export const createBookingValidator = Joi.object({
         }),
 
     // Pet Owner validation (assuming it's a MongoDB ObjectId)
-    petOwner: Joi.string()
-        .required()
-        .messages({
-            'string.empty': 'Pet owner is required',
-            'any.required': 'Pet owner information is mandatory'
-        }),
+    // petOwner: Joi.string()
+    //     .required()
+    //     .messages({
+    //         'string.empty': 'Pet owner is required',
+    //         'any.required': 'Pet owner information is mandatory'
+    //     }),
 
     // Pet Name validation
     petName: Joi.string()
