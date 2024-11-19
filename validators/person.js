@@ -6,7 +6,11 @@ export const createPersonValidator = Joi.object({
     lastName: Joi.string().required().trim(),
     email: Joi.string().required().trim().email(),
     password: Joi.string().required(),
-    role: Joi.string().valid('admin', 'user', 'vendor').default('user')
+    role: Joi.string().valid('admin', 'user', 'vendor').default('user'),
+    storeName: Joi.string(),
+    storeLocation: Joi.string(),
+    storeDescription: Joi.string(),
+    storeContact: Joi.string()
 });
 
 

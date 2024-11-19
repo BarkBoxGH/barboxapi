@@ -339,3 +339,91 @@ export const deleteBooking = async (req, res, next) => {
       next(error);
   }
 };
+
+// get all bookings for a specific pet owner or user
+export const getBookingsByUser = async (req, res, next) => {
+    try {
+        const { page = 1, limit = 10 } = req.query; // Get pagination parameters from query
+        const skip = (page - 1) * limit;
+        
+        const bookings = await BookingModel.find({ petOwner: req.params.id })
+            .populate('petOwner', 'firstName lastName email')
+            .populate('service', 'name')
+            .skip(skip)
+            .limit(parseInt(limit));
+        
+        const total = await BookingModel.countDocuments({ petOwner: req.params.id });
+        
+        res.status(200).json({
+            success: true,
+            data: bookings,
+            pagination: {
+                total,
+                pages: Math.ceil(total / limit),
+                currentPage: parseInt(page),
+                limit: parseInt(limit)
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// get all bookings for a specific service
+export const getBookingsByService = async (req, res, next) => {
+    try {
+        const { page = 1, limit = 10 } = req.query;
+        const skip = (page - 1) * limit;
+
+        const bookings = await BookingModel.find({ service: req.params.id })
+            .populate('petOwner', 'firstName lastName email')
+            .populate('service', 'name')
+            .skip(skip)
+            .limit(parseInt(limit))
+            .sort('-appointmentDate');
+
+        const total = await BookingModel.countDocuments({ service: req.params.id });
+
+        res.status(200).json({
+            success: true,
+            data: bookings,
+            pagination: {
+                total,
+                pages: Math.ceil(total / limit),
+                currentPage: parseInt(page),
+                limit: parseInt(limit)
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// get all bookings for a specific date
+export const getBookingsByDate = async (req, res, next) => {
+    try {
+        const { page = 1, limit = 10 } = req.query;
+        const skip = (page - 1) * limit;
+        const { date } = req.params; // date is in the format YYYY-MM-DD (e.g., 2023-09-25)
+        const bookings = await BookingModel.find({ appointmentDate: date}) // filter booking by date
+        .populate('petOwner', 'firstName lastName email')
+        .populate('service', 'name')
+        .skip(skip)
+        .limit(parseInt(limit))
+        .sort('-appointmentDate');
+        // count total bookings for the date
+        const total = await BookingModel.countDocuments({ appointmentDate: date});
+        res.status(200).json({
+            success: true,
+            data: bookings,
+            pagination: {
+                total,
+                pages: Math.ceil(total / limit),
+                currentPage: parseInt(page),
+                limit: parseInt(limit)
+            }
+        
+        });
+        } catch (error) {
+            next(error);
+        }}
