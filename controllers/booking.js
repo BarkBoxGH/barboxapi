@@ -104,7 +104,7 @@ export const getAllBookings = async (req, res, next) => {
             endDate,
             page = 1, 
             limit = 10, 
-            sort = '-createdAt' 
+            sort = '-appointmentDate' 
         } = req.query;
 
         // Create dynamic query
